@@ -27,4 +27,4 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: xiaoxigua-1/minecraft-server-status:latest
+          tags: xiaoxigua1/minecraft-server-status:latest
