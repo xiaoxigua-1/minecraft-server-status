@@ -1,25 +1,33 @@
-use std::net::{UdpSocket, TcpStream};
+mod get_server_status;
+
+use std::env;
+use std::net::SocketAddr;
+use std::str;
 use std::sync::Arc;
-use std::{str, env};
+
+use tokio::net::UdpSocket;
+use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let listen = env::var("LISTEN").unwrap();
-    let socket = Arc::new(UdpSocket::bind(listen)?);
-    let mut buf = [0u8; 1024];
-    
+    let mut buf = [0;1024];
+    let udp_socket = UdpSocket::bind(listen).await?;
+    let udp_scoket_arc = Arc::new(udp_socket);    
+    let udp_scoket_clone = udp_scoket_arc.clone(); 
+    let (tx, mut rx) = mpsc::channel::<(Vec<u8>, SocketAddr)>(1_000);
+
+    tokio::spawn(async move {
+        while let Some((buf, addr)) = rx.recv().await {
+            match str::from_utf8(&buf).unwrap() {
+                _ => {}
+            }
+        } 
+    });
+
     loop {
-        let (len, _) = socket.recv_from(&mut buf).expect("");
-        let content = str::from_utf8(&buf[..len - 1]).unwrap();
-        let content = String::from(content);
-        let udp_socket = socket.clone();
-        tokio::spawn(async move {
-            let send_buf = if let Ok(_) = TcpStream::connect(content) {
-                "Up"
-            } else {
-                "Down"
-            }.as_bytes();
-            udp_socket.send(send_buf).expect("");
-        });
+        let (_, addr) = udp_scoket_arc.recv_from(&mut buf).await?;
+        
+        tx.send((buf.to_vec(), addr)).await.expect("");
     }
 }
